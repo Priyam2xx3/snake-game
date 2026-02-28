@@ -319,6 +319,8 @@
         grassTexture.wrapT = THREE.RepeatWrapping;
         grassTexture.repeat.set(10, 10); // Repeat the grass texture across the large board
 
+        const treeTexture = textureLoader.load('trees.png');
+
         // Materials (Forest Theme)
         const snakeHeadMat = new THREE.MeshStandardMaterial({
             color: 0x228B22, // Forest Green
@@ -424,7 +426,11 @@
 
             // Leaves
             const leavesGeo = new THREE.ConeGeometry(0.8, 2, 5);
-            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1f3812, roughness: 0.9 });
+            const leavesMat = new THREE.MeshStandardMaterial({
+                map: treeTexture,
+                color: 0xffffff, // White to avoid tinting the texture 
+                roughness: 0.9
+            });
             const leaves = new THREE.Mesh(leavesGeo, leavesMat);
             leaves.position.y = 1.6 + (Math.random() * 0.4); // Randomize height slightly
             leaves.castShadow = true;
