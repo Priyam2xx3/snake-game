@@ -312,20 +312,22 @@
 
         // Load Textures
         const textureLoader = new THREE.TextureLoader();
-        const snakeTexture = textureLoader.load('snake.png');
         const bgTexture = textureLoader.load('the-forest.png');
+
+        const grassTexture = textureLoader.load('grass.jpg');
+        grassTexture.wrapS = THREE.RepeatWrapping;
+        grassTexture.wrapT = THREE.RepeatWrapping;
+        grassTexture.repeat.set(10, 10); // Repeat the grass texture across the large board
 
         // Materials (Forest Theme)
         const snakeHeadMat = new THREE.MeshStandardMaterial({
-            map: snakeTexture,
-            color: 0xffffff, // White color so texture is unmodified
+            color: 0x111111, // Black
             roughness: 0.8,
             metalness: 0.2,
             emissive: 0x000000
         });
         const snakeBodyMat = new THREE.MeshStandardMaterial({
-            map: snakeTexture,
-            color: 0xffffff,
+            color: 0x1a1a1a, // Very dark gray/black
             roughness: 0.9,
             metalness: 0.1
         });
@@ -451,10 +453,11 @@
         }
 
         function createBoard() {
-            // The floor (Light matte green ground)
+            // The floor (Light matte green ground with grass texture)
             const floorGeo = new THREE.PlaneGeometry(GRID_SIZE * CELL_SIZE + 10, GRID_SIZE * CELL_SIZE + 10);
             const floorMat = new THREE.MeshStandardMaterial({
-                color: 0x8ab974, // Light matte green
+                map: grassTexture,
+                color: 0xffffff, // White so the texture isn't tinted weirdly unless wanted
                 roughness: 1.0,
                 metalness: 0.0
             });
