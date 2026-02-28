@@ -310,15 +310,22 @@
         let moveDelay = 200; // ms between moves
         let isGameOver = true;
 
+        // Load Textures
+        const textureLoader = new THREE.TextureLoader();
+        const snakeTexture = textureLoader.load('snake.png');
+        const bgTexture = textureLoader.load('the-forest.png');
+
         // Materials (Forest Theme)
         const snakeHeadMat = new THREE.MeshStandardMaterial({
-            color: 0x111111, // Black
+            map: snakeTexture,
+            color: 0xffffff, // White color so texture is unmodified
             roughness: 0.8,
             metalness: 0.2,
             emissive: 0x000000
         });
         const snakeBodyMat = new THREE.MeshStandardMaterial({
-            color: 0x1a1a1a, // Very dark gray/black
+            map: snakeTexture,
+            color: 0xffffff,
             roughness: 0.9,
             metalness: 0.1
         });
@@ -348,8 +355,8 @@
         function init3D() {
             // Scene setup
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111c0f); // Very dark green background
-            scene.fog = new THREE.FogExp2(0x111c0f, 0.025);
+            scene.background = bgTexture; // Apply background image
+            scene.fog = new THREE.FogExp2(0x111c0f, 0.015); // Less dense fog to see background
 
             // Camera setup
             camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
