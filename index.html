@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Retro Nokia Snake</title>
+    <style>
+        body {
+            background-color: #2c3e2c;
+            /* Surrounding dark UI */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Courier New', Courier, monospace;
+            color: #879477;
+            /* Nokia screen color for text outside */
+            touch-action: none;
+            overflow: hidden;
+        }
+
+        #game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #game-container {
+            background-color: #879477;
+            /* Nokia screen green */
+            border: 10px solid #111;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        canvas {
+            background-color: #9ebd9e;
+            /* slightly lighter green for the canvas area */
+            border: 2px solid #333;
+            image-rendering: pixelated;
+            /* Retro feel */
+        }
+
+        .score-board {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #111;
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(3, 60px);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .d-pad button {
+            background-color: #444;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px #222;
+            transition: transform 0.1s, box-shadow 0.1s;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .d-pad button:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px #222;
+        }
+
+        .up {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .left {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .right {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .down {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        @media (min-width: 768px) {
+            .d-pad {
+                display: none;
+                /* Hide D-pad on larger screens where keyboard is expected */
+            }
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(135, 148, 119, 0.95);
+            color: #111;
+            padding: 20px;
+            border: 4px solid #111;
+            text-align: center;
+            display: none;
+            font-weight: bold;
+            z-index: 10;
+            width: 80%;
+        }
+
+        #game-over h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+        }
+
+        #game-over button {
+            background: #111;
+            color: #879477;
+            border: none;
+            padding: 10px 20px;
+            font-family: inherit;
+            font-weight: bold;
+            margin-top: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        #game-over button:hover {
+            background: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-wrapper">
+        <div id="game-container">
+            <div class="score-board">
+                <span id="scoreText">Score: 0</span>
+                <span id="highScoreText">High: 0</span>
+            </div>
+
+            <canvas id="gameCanvas" width="300" height="300"></canvas>
+
+            <div id="game-over">
+                <h2>GAME OVER</h2>
+                <p id="finalScore"></p>
+                <button onclick="resetGame()">Try Again</button>
+            </div>
+        </div>
+
+        <div class="d-pad">
+            <button class="up" id="btnUp">▲</button>
+            <button class="left" id="btnLeft">◀</button>
+            <button class="right" id="btnRight">▶</button>
+            <button class="down" id="btnDown">▼</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Grid settings
+        const scale = 15;
+        const rows = canvas.height / scale;
+        const columns = canvas.width / scale;
+
+        // Game variables
+        let snake;
+        let food;
+        let goldenApple = null;
+        let score = 0;
+        let highScore = localStorage.getItem("snakeHighScore") || 0;
+        let d; // direction
+        let gameLoopDelay = 150; // Initial speed in ms
+        let baseDelay = 150;
+        let foodEaten = 0;
+        let gameInterval;
+        let goldenAppleTimer = null;
+        let isGameOver = false;
+
+        document.getElementById("highScoreText").innerText = `High: ${highScore}`;
+
+        // Initialize the game
+        function setup() {
+            snake = new Snake();
+            food = new Food();
+            food.pickLocation();
+            goldenApple = null;
+            clearTimeout(goldenAppleTimer);
+
+            score = 0;
+            foodEaten = 0;
+            gameLoopDelay = baseDelay;
+            d = 'Right'; // Default direction
+            isGameOver = false;
+
+            document.getElementById("scoreText").innerText = `Score: ${score}`;
+            document.getElementById("game-over").style.display = "none";
+
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, gameLoopDelay);
+        }
+
+        // Main game loop
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Randomly spawn golden apple if it doesn't exist (small chance each frame)
+            if (!goldenApple && Math.random() < 0.005) {
+                spawnGoldenApple();
+            }
+
+            food.draw();
+
+            if (goldenApple) {
+                goldenApple.draw();
+            }
+
+            snake.update();
+
+            // Handle normal food
+            if (snake.eat(food)) {
+                food.pickLocation();
+                // Ensure food doesn't spawn on snake
+                while (snake.tail.some(segment => segment.x === food.x && segment.y === food.y)) {
+                    food.pickLocation();
+                }
+            }
+
+            // Handle golden apple
+            if (goldenApple && snake.eatGoldenApple(goldenApple)) {
+                clearTimeout(goldenAppleTimer);
+                goldenApple = null;
+            }
+
+            snake.draw();
+
+            if (snake.checkCollision()) {
+                gameOver();
+            }
+        }
+
+        class Snake {
+            constructor() {
+                this.x = scale * 2; // Start slightly off edge
+                this.y = scale * 2;
+                this.xSpeed = scale;
+                this.ySpeed = 0;
+                this.total = 0;
+                this.tail = [];
+            }
+
+            draw() {
+                ctx.fillStyle = "#111"; // Nokia Black
+
+                for (let i = 0; i < this.tail.length; i++) {
+                    ctx.fillRect(this.tail[i].x, this.tail[i].y, scale, scale);
+                    // Draw slight border for pixel separation
+                    ctx.strokeStyle = "#9ebd9e";
+                    ctx.strokeRect(this.tail[i].x, this.tail[i].y, scale, scale);
+                }
+                // Draw head
+                ctx.fillRect(this.x, this.y, scale, scale);
+                ctx.strokeStyle = "#9ebd9e";
+                ctx.strokeRect(this.x, this.y, scale, scale);
+            }
+
+            update() {
+                if (this.total === this.tail.length) {
+                    for (let i = 0; i < this.tail.length - 1; i++) {
+                        this.tail[i] = this.tail[i + 1];
+                    }
+                }
+                if (this.total >= 1) {
+                    this.tail[this.total - 1] = { x: this.x, y: this.y };
+                }
+
+                this.x += this.xSpeed;
+                this.y += this.ySpeed;
+            }
+
+            changeDirection(direction) {
+                if (direction === 'Up' && this.ySpeed === 0) {
+                    this.xSpeed = 0;
+                    this.ySpeed = -scale;
+                    d = 'Up';
+                } else if (direction === 'Down' && this.ySpeed === 0) {
+                    this.xSpeed = 0;
+                    this.ySpeed = scale;
+                    d = 'Down';
+                } else if (direction === 'Left' && this.xSpeed === 0) {
+                    this.xSpeed = -scale;
+                    this.ySpeed = 0;
+                    d = 'Left';
+                } else if (direction === 'Right' && this.xSpeed === 0) {
+                    this.xSpeed = scale;
+                    this.ySpeed = 0;
+                    d = 'Right';
+                }
+            }
+
+            eat(fruit) {
+                if (this.x === fruit.x && this.y === fruit.y) {
+                    this.total++;
+                    score += 10;
+                    foodEaten++;
+                    updateScore();
+
+                    // Speed Scaling: Increase speed by 5% every 5 foods
+                    if (foodEaten % 5 === 0) {
+                        gameLoopDelay = Math.max(50, gameLoopDelay * 0.95);
+                        clearInterval(gameInterval);
+                        gameInterval = setInterval(gameLoop, gameLoopDelay);
+                    }
+
+                    return true;
+                }
+                return false;
+            }
+
+            eatGoldenApple(apple) {
+                if (this.x === apple.x && this.y === apple.y) {
+                    score += 20; // Double points
+                    updateScore();
+                    return true;
+                }
+                return false;
+            }
+
+            checkCollision() {
+                // Wall collision
+                if (this.x < 0 || this.x >= canvas.width || this.y < 0 || this.y >= canvas.height) {
+                    return true;
+                }
+                // Tail collision
+                for (let i = 0; i < this.tail.length; i++) {
+                    if (this.x === this.tail[i].x && this.y === this.tail[i].y) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        class Food {
+            constructor() {
+                this.x = 0;
+                this.y = 0;
+            }
+
+            pickLocation() {
+                this.x = (Math.floor(Math.random() * columns)) * scale;
+                this.y = (Math.floor(Math.random() * rows)) * scale;
+            }
+
+            draw() {
+                ctx.fillStyle = "#111"; // Nokia Black
+                // Draw a square for a retro feel
+                ctx.fillRect(this.x, this.y, scale, scale);
+            }
+        }
+
+        class GoldenApple {
+            constructor() {
+                this.x = (Math.floor(Math.random() * columns)) * scale;
+                this.y = (Math.floor(Math.random() * rows)) * scale;
+            }
+
+            draw() {
+                // Blink effect to distinguish from normal food
+                if (Math.floor(Date.now() / 200) % 2 === 0) {
+                    ctx.fillStyle = "#111";
+                } else {
+                    ctx.fillStyle = "transparent";
+                }
+                ctx.fillRect(this.x, this.y, scale, scale);
+                ctx.strokeStyle = "#111";
+                ctx.strokeRect(this.x, this.y, scale, scale);
+            }
+        }
+
+        function spawnGoldenApple() {
+            goldenApple = new GoldenApple();
+            goldenAppleTimer = setTimeout(() => {
+                goldenApple = null;
+            }, 5000); // Disappears after 5 seconds
+        }
+
+        function updateScore() {
+            document.getElementById("scoreText").innerText = `Score: ${score}`;
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(gameInterval);
+            document.getElementById("game-over").style.display = "block";
+            document.getElementById("finalScore").innerText = `Final Score: ${score}`;
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("snakeHighScore", highScore);
+                document.getElementById("highScoreText").innerText = `High: ${highScore}`;
+            }
+        }
+
+        function resetGame() {
+            setup();
+        }
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (evt) => {
+            if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "w", "a", "s", "d"].indexOf(evt.key) > -1) {
+                evt.preventDefault();
+            }
+
+            if (isGameOver && evt.key === "Enter") {
+                resetGame();
+                return;
+            }
+
+            const key = evt.key.toLowerCase();
+            if (key === 'arrowup' || key === 'w') {
+                snake.changeDirection('Up');
+            } else if (key === 'arrowdown' || key === 's') {
+                snake.changeDirection('Down');
+            } else if (key === 'arrowleft' || key === 'a') {
+                snake.changeDirection('Left');
+            } else if (key === 'arrowright' || key === 'd') {
+                snake.changeDirection('Right');
+            }
+        });
+
+        // Mobile Controls
+        function attachTouchableBtn(id, dir) {
+            const btn = document.getElementById(id);
+
+            const triggerDir = (e) => {
+                e.preventDefault();
+                snake.changeDirection(dir);
+            };
+
+            btn.addEventListener('touchstart', triggerDir);
+            btn.addEventListener('mousedown', triggerDir);
+        }
+
+        attachTouchableBtn('btnUp', 'Up');
+        attachTouchableBtn('btnDown', 'Down');
+        attachTouchableBtn('btnLeft', 'Left');
+        attachTouchableBtn('btnRight', 'Right');
+
+        // Start
+        setup();
+    </script>
+
+</body>
+
+</html>
