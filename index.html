@@ -199,6 +199,7 @@
             margin-bottom: 10px;
             background: linear-gradient(135deg, #87b372 0%, #4b7931 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         }
@@ -217,10 +218,29 @@
             margin-top: 20px;
         }
 
-        #start-screen button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 25px rgba(0, 0, 0, 0.6);
-            background: linear-gradient(135deg, #5b8c3c 0%, #365c20 100%);
+        #start-screen button.speed-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #87b372;
+            color: #d1e2c4;
+            padding: 10px 20px;
+            font-size: 1rem;
+            margin: 0 5px;
+            transition: all 0.2s;
+        }
+
+        #start-screen button.speed-btn.selected,
+        #start-screen button.speed-btn:hover {
+            background: #4b7931;
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transform: scale(1.05);
+        }
+
+        .speed-selector {
+            margin-top: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: center;
         }
     </style>
     <!-- Include Three.js from CDN -->
@@ -253,6 +273,13 @@
     <div id="start-screen">
         <h1>FOREST SNAKE</h1>
         <p>Use arrow keys or WASD to move.</p>
+
+        <div class="speed-selector">
+            <button class="speed-btn" onclick="setSpeed(300, this)">Slow</button>
+            <button class="speed-btn selected" onclick="setSpeed(200, this)">Normal</button>
+            <button class="speed-btn" onclick="setSpeed(120, this)">Fast</button>
+        </div>
+
         <button onclick="startGame()">PLAY NOW</button>
     </div>
 
@@ -279,20 +306,21 @@
         let highScore = localStorage.getItem("snake3DForestHighScore") || 0;
         let gameInterval;
         let lastMoveTime = 0;
-        let moveDelay = 220; // ms between moves
+        let chosenDelay = 200; // Default normal speed
+        let moveDelay = 200; // ms between moves
         let isGameOver = true;
 
         // Materials (Forest Theme)
         const snakeHeadMat = new THREE.MeshStandardMaterial({
-            color: 0x224411, // Dark organic green
+            color: 0x111111, // Black
             roughness: 0.8,
-            metalness: 0.1,
-            emissive: 0x051100
+            metalness: 0.2,
+            emissive: 0x000000
         });
         const snakeBodyMat = new THREE.MeshStandardMaterial({
-            color: 0x3d6b20, // Lighter organic green
+            color: 0x1a1a1a, // Very dark gray/black
             roughness: 0.9,
-            metalness: 0.05
+            metalness: 0.1
         });
         const foodMat = new THREE.MeshStandardMaterial({
             color: 0xff3333, // Red apple
@@ -416,10 +444,10 @@
         }
 
         function createBoard() {
-            // The floor (Grassy earthy ground)
+            // The floor (Light matte green ground)
             const floorGeo = new THREE.PlaneGeometry(GRID_SIZE * CELL_SIZE + 10, GRID_SIZE * CELL_SIZE + 10);
             const floorMat = new THREE.MeshStandardMaterial({
-                color: 0x24331a, // Earthy dark green
+                color: 0x8ab974, // Light matte green
                 roughness: 1.0,
                 metalness: 0.0
             });
@@ -455,6 +483,13 @@
         }
 
         // --- Game Logic ---
+        function setSpeed(delay, btnElement) {
+            chosenDelay = delay;
+            // Update UI
+            document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('selected'));
+            btnElement.classList.add('selected');
+        }
+
         function startGame() {
             startScreen.style.opacity = 0;
             setTimeout(() => { startScreen.style.display = 'none'; }, 500);
@@ -464,7 +499,7 @@
         function resetGame() {
             isGameOver = false;
             score = 0;
-            moveDelay = 150;
+            moveDelay = chosenDelay; // Apply the chosen speed
             dir = { x: 1, z: 0 };
             nextDir = { x: 1, z: 0 };
             updateScore();
@@ -622,10 +657,7 @@
                 AteFood = true;
                 score += 10;
                 updateScore();
-
-                if (score % 50 === 0) {
-                    moveDelay = Math.max(90, moveDelay * 0.95);
-                }
+                // Speed scaling has been removed as per requirements (fixed speed during gameplay)
             }
 
             if (AteFood) {
